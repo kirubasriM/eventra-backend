@@ -20,7 +20,8 @@ import java.util.Map;
         "http://localhost:5187",
         "http://localhost:5188",
         "http://localhost:5189",
-        "http://localhost:5190"
+        "http://localhost:5190",
+        "https://eventra-frontend-theta.vercel.app"
     },
     originPatterns = {"http://localhost:*", "http://127.0.0.1:*"}
 )
