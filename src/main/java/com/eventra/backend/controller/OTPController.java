@@ -2,11 +2,15 @@ package com.eventra.backend.controller;
 
 import com.eventra.backend.dto.OTPVerificationResult;
 import com.eventra.backend.dto.SendOtpResult;
+import com.eventra.backend.entity.User;
+import com.eventra.backend.repository.UserRepository;
 import com.eventra.backend.service.OTPService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -31,9 +35,16 @@ import java.util.Map;
 public class OTPController {
 
     private final OTPService otpService;
+    private final UserRepository userRepository;
+
+    @Autowired
+    public OTPController(OTPService otpService, UserRepository userRepository) {
+        this.otpService = otpService;
+        this.userRepository = userRepository;
+    }
 
     public OTPController(OTPService otpService) {
-        this.otpService = otpService;
+        this(otpService, null);
     }
 
     @PostMapping("/send-otp")
@@ -41,11 +52,34 @@ public class OTPController {
             @RequestBody Map<String, String> request) {
 
         String phone = request != null ? request.get("phone") : null;
+        String email = request != null ? request.get("email") : null;
 
+        // Email OTP Send
+        if (email != null && !email.isBlank()) {
+            SendOtpResult result = otpService.sendEmailOTP(email);
+
+            if (!result.isSuccess()) {
+                Map<String, Object> errResponse = new HashMap<>();
+                errResponse.put("success", false);
+                errResponse.put("message", result.getMessage());
+                if (result.getRetryAfterSeconds() > 0) {
+                    errResponse.put("retryAfterSeconds", result.getRetryAfterSeconds());
+                }
+                return errResponse;
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", result.getMessage());
+            // Security requirement: NEVER return demoOtp for email
+            return response;
+        }
+
+        // Mobile OTP Send (existing)
         if (phone == null || phone.isBlank()) {
             return Map.of(
                     "success", false,
-                    "message", "Phone number is required"
+                    "message", "Phone number or email is required"
             );
         }
 
@@ -65,7 +99,7 @@ public class OTPController {
         response.put("success", true);
         response.put("message", result.getMessage());
 
-        // In real SMS mode, demoOtp is null and therefore omitted from the response
+        // In real SMS mode, demoOtp is null and therefore omitted from response
         if (result.getDemoOtp() != null) {
             response.put("demoOtp", result.getDemoOtp());
         }
@@ -78,14 +112,54 @@ public class OTPController {
             @RequestBody Map<String, String> request) {
 
         String phone = request != null ? request.get("phone") : null;
+        String email = request != null ? request.get("email") : null;
         String otp = request != null ? request.get("otp") : null;
 
-        if (phone == null || phone.isBlank()
-                || otp == null || otp.isBlank()) {
-
+        if (otp == null || otp.isBlank()) {
             return Map.of(
                     "success", false,
-                    "message", "Phone number and OTP are required"
+                    "message", "OTP is required"
+            );
+        }
+
+        // Email OTP Verification
+        if (email != null && !email.isBlank()) {
+            OTPVerificationResult result = otpService.verifyEmailOTPWithResult(email, otp);
+
+            if (!result.isSuccess()) {
+                return Map.of(
+                        "success", false,
+                        "message", result.getMessage()
+                );
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", result.getMessage());
+
+            if (userRepository != null) {
+                String normalizedEmail = OTPService.normalizeEmail(email);
+                Optional<User> userOpt = userRepository.findByEmailIgnoreCase(normalizedEmail);
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    response.put("userId", user.getId());
+                    response.put("fullName", user.getFullName());
+                    response.put("email", user.getEmail());
+                    if (user.getPhone() != null && !user.getPhone().isBlank()) {
+                        response.put("phone", user.getPhone());
+                    }
+                    response.put("role", user.getRole());
+                }
+            }
+
+            return response;
+        }
+
+        // Mobile OTP Verification (existing)
+        if (phone == null || phone.isBlank()) {
+            return Map.of(
+                    "success", false,
+                    "message", "Phone number or email is required"
             );
         }
 

@@ -12,4 +12,8 @@ public interface OTPVerificationRepository
     Optional<OTPVerification> findTopByPhoneOrderByIdDesc(String phone);
 
     long countByPhoneAndCreatedAtAfter(String phone, LocalDateTime afterTime);
+
+    Optional<OTPVerification> findTopByEmailOrderByIdDesc(String email);
+
+    long countByEmailAndCreatedAtAfter(String email, LocalDateTime afterTime);
 }

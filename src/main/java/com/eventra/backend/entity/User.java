@@ -13,9 +13,10 @@ public class User {
     @Column(nullable = false)
     private String fullName;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = true, unique = true)
     private String phone;
 
+    @Column(nullable = true)
     private String email;
 
     @Column(nullable = false)

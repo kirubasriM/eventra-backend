@@ -11,8 +11,11 @@ public class OTPVerification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String phone;
+
+    @Column(nullable = true)
+    private String email;
 
     @Column(nullable = false)
     private String otp;
@@ -33,7 +36,17 @@ public class OTPVerification {
     }
 
     public OTPVerification(String phone, String otp, LocalDateTime expiresAt) {
-        this.phone = phone;
+        this.phone = phone != null ? phone : "";
+        this.otp = otp;
+        this.expiresAt = expiresAt;
+        this.createdAt = LocalDateTime.now();
+        this.used = false;
+        this.attempts = 0;
+    }
+
+    public OTPVerification(String phone, String email, String otp, LocalDateTime expiresAt) {
+        this.phone = phone != null ? phone : "";
+        this.email = email;
         this.otp = otp;
         this.expiresAt = expiresAt;
         this.createdAt = LocalDateTime.now();
@@ -55,6 +68,14 @@ public class OTPVerification {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getOtp() {
