@@ -23,7 +23,22 @@ public class OTPVerification {
     @Column(nullable = false)
     private boolean used = false;
 
+    @Column(name = "created_at")
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(nullable = false)
+    private int attempts = 0;
+
     public OTPVerification() {
+    }
+
+    public OTPVerification(String phone, String otp, LocalDateTime expiresAt) {
+        this.phone = phone;
+        this.otp = otp;
+        this.expiresAt = expiresAt;
+        this.createdAt = LocalDateTime.now();
+        this.used = false;
+        this.attempts = 0;
     }
 
     public Long getId() {
@@ -64,5 +79,24 @@ public class OTPVerification {
 
     public void setUsed(boolean used) {
         this.used = used;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        if (createdAt == null && expiresAt != null) {
+            return expiresAt.minusMinutes(5);
+        }
+        return createdAt != null ? createdAt : LocalDateTime.now();
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public int getAttempts() {
+        return attempts;
+    }
+
+    public void setAttempts(int attempts) {
+        this.attempts = attempts;
     }
 }

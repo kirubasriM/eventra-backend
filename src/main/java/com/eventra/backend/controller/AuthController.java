@@ -1,5 +1,6 @@
 package com.eventra.backend.controller;
 
+import com.eventra.backend.dto.OTPVerificationResult;
 import com.eventra.backend.entity.User;
 import com.eventra.backend.repository.UserRepository;
 import com.eventra.backend.service.OTPService;
@@ -44,9 +45,24 @@ public class AuthController {
     public Map<String, Object> register(
             @RequestBody User user) {
 
-        // Check whether phone already exists
-        if (userRepository.existsByPhone(user.getPhone())) {
+        if (user == null || user.getPhone() == null || user.getPhone().isBlank()) {
+            return Map.of(
+                    "success", false,
+                    "message", "Phone number is required"
+            );
+        }
 
+        String normalizedPhone = OTPService.normalizePhone(user.getPhone());
+        if (!OTPService.isValidIndianPhone(normalizedPhone)) {
+            return Map.of(
+                    "success", false,
+                    "message", "Please enter a valid 10-digit Indian mobile number"
+            );
+        }
+        user.setPhone(normalizedPhone);
+
+        // Check whether phone already exists
+        if (userRepository.existsByPhone(normalizedPhone)) {
             return Map.of(
                     "success", false,
                     "message", "Phone number already registered"
@@ -68,36 +84,34 @@ public class AuthController {
     public Map<String, Object> login(
             @RequestBody Map<String, String> request) {
 
-        String phone = request.get("phone");
-        String otp = request.get("otp");
+        String phone = request != null ? request.get("phone") : null;
+        String otp = request != null ? request.get("otp") : null;
 
-        if (phone == null || otp == null) {
-
+        if (phone == null || phone.isBlank() || otp == null || otp.isBlank()) {
             return Map.of(
                     "success", false,
                     "message", "Phone number and OTP are required"
             );
         }
 
+        String normalizedPhone = OTPService.normalizePhone(phone);
+
         // Verify OTP
-        boolean otpValid = otpService.verifyOTP(phone, otp);
+        OTPVerificationResult otpResult = otpService.verifyOTPWithResult(normalizedPhone, otp);
 
-        if (!otpValid) {
-
+        if (!otpResult.isSuccess()) {
             return Map.of(
                     "success", false,
-                    "message", "Invalid or expired OTP"
+                    "message", otpResult.getMessage()
             );
         }
 
-        var userOptional = userRepository.findByPhone(phone);
+        var userOptional = userRepository.findByPhone(normalizedPhone);
 
         if (userOptional.isEmpty()) {
-
             return Map.of(
                     "success", false,
-                    "message", "User not registered",
-                    "debugPhone", phone
+                    "message", "User not registered"
             );
         }
         User user = userOptional.get();

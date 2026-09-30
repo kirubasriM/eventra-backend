@@ -1,8 +1,11 @@
 package com.eventra.backend.controller;
 
+import com.eventra.backend.dto.OTPVerificationResult;
+import com.eventra.backend.dto.SendOtpResult;
 import com.eventra.backend.service.OTPService;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -37,7 +40,7 @@ public class OTPController {
     public Map<String, Object> sendOTP(
             @RequestBody Map<String, String> request) {
 
-        String phone = request.get("phone");
+        String phone = request != null ? request.get("phone") : null;
 
         if (phone == null || phone.isBlank()) {
             return Map.of(
@@ -46,21 +49,36 @@ public class OTPController {
             );
         }
 
-        String otp = otpService.generateOTP(phone);
+        SendOtpResult result = otpService.sendOTP(phone);
 
-        return Map.of(
-                "success", true,
-                "message", "OTP generated successfully",
-                "demoOtp", otp
-        );
+        if (!result.isSuccess()) {
+            Map<String, Object> errResponse = new HashMap<>();
+            errResponse.put("success", false);
+            errResponse.put("message", result.getMessage());
+            if (result.getRetryAfterSeconds() > 0) {
+                errResponse.put("retryAfterSeconds", result.getRetryAfterSeconds());
+            }
+            return errResponse;
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", result.getMessage());
+
+        // In real SMS mode, demoOtp is null and therefore omitted from the response
+        if (result.getDemoOtp() != null) {
+            response.put("demoOtp", result.getDemoOtp());
+        }
+
+        return response;
     }
 
     @PostMapping("/verify-otp")
     public Map<String, Object> verifyOTP(
             @RequestBody Map<String, String> request) {
 
-        String phone = request.get("phone");
-        String otp = request.get("otp");
+        String phone = request != null ? request.get("phone") : null;
+        String otp = request != null ? request.get("otp") : null;
 
         if (phone == null || phone.isBlank()
                 || otp == null || otp.isBlank()) {
@@ -71,18 +89,18 @@ public class OTPController {
             );
         }
 
-        boolean valid = otpService.verifyOTP(phone, otp);
+        OTPVerificationResult result = otpService.verifyOTPWithResult(phone, otp);
 
-        if (!valid) {
+        if (!result.isSuccess()) {
             return Map.of(
                     "success", false,
-                    "message", "Invalid or expired OTP"
+                    "message", result.getMessage()
             );
         }
 
         return Map.of(
                 "success", true,
-                "message", "OTP verified successfully"
+                "message", result.getMessage()
         );
     }
 }
